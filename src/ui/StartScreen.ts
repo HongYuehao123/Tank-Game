@@ -14,6 +14,8 @@ export class StartScreen {
   private widthInput: HTMLInputElement;
   private heightInput: HTMLInputElement;
   private fairCheck: HTMLInputElement;
+  private randomCheck: HTMLInputElement;
+  private sizeFields: HTMLElement[];
   private speedSlider: HTMLInputElement;
   private speedReadout: HTMLElement;
   private errorEl: HTMLElement;
@@ -53,14 +55,19 @@ export class StartScreen {
             <label for="ai-count">${'AI Count'}</label>
             <input id="ai-count" type="number" min="1" max="19" value="3" />
           </div>
-          <div class="field">
+          <div class="field size-field">
             <label for="board-width">Board Width (5–${MAX_BOARD})</label>
             <input id="board-width" type="number" min="${MIN_BOARD}" max="${MAX_BOARD}" value="12" />
           </div>
-          <div class="field">
+          <div class="field size-field">
             <label for="board-height">Board Height (5–${MAX_BOARD})</label>
             <input id="board-height" type="number" min="${MIN_BOARD}" max="${MAX_BOARD}" value="12" />
           </div>
+        </div>
+
+        <div class="fair-row">
+          <input id="random-size" type="checkbox" />
+          <label for="random-size">Random Size</label>
         </div>
 
         <div class="field">
@@ -106,9 +113,14 @@ export class StartScreen {
     this.widthInput = this.el.querySelector('#board-width')!;
     this.heightInput = this.el.querySelector('#board-height')!;
     this.fairCheck = this.el.querySelector('#fair')!;
+    this.randomCheck = this.el.querySelector('#random-size')!;
+    this.sizeFields = Array.from(this.el.querySelectorAll<HTMLElement>('.size-field'));
     this.speedSlider = this.el.querySelector('#speed-slider')!;
     this.speedReadout = this.el.querySelector('#speed-readout')!;
     this.errorEl = this.el.querySelector('#start-error')!;
+
+    this.randomCheck.addEventListener('change', () => this.updateSizeFields());
+    this.updateSizeFields();
 
     this.speedSlider.addEventListener('input', () => {
       const i = Math.min(parseInt(this.speedSlider.value, 10), StartScreen.SPEED_LABELS.length - 1);
@@ -140,6 +152,23 @@ export class StartScreen {
     if (mode === 'ffa' && parseInt(this.aiInput.value, 10) < 2) this.aiInput.value = '2';
   }
 
+  /** With Random Size checked, hide the manual width/height inputs. */
+  private updateSizeFields(): void {
+    const random = this.randomCheck.checked;
+    for (const f of this.sizeFields) f.classList.toggle('hidden', random);
+  }
+
+  /** Random width/height in [MIN_BOARD, MAX_BOARD], retried until it fits
+   *  the chosen number of tanks (always terminates: 20×20 fits everything). */
+  private randomBoardSize(minArea: number): { w: number; h: number } {
+    for (let i = 0; i < 60; i++) {
+      const w = MIN_BOARD + Math.floor(Math.random() * (MAX_BOARD - MIN_BOARD + 1));
+      const h = MIN_BOARD + Math.floor(Math.random() * (MAX_BOARD - MIN_BOARD + 1));
+      if (w * h >= minArea) return { w, h };
+    }
+    return { w: MAX_BOARD, h: MAX_BOARD };
+  }
+
   private selectedMode(): GameMode {
     return (this.modeRadios.find((r) => r.checked)?.value as GameMode) ?? 'pve';
   }
@@ -151,14 +180,8 @@ export class StartScreen {
   private submit(): void {
     const mode = this.selectedMode();
     const aiCount = Math.round(parseInt(this.aiInput.value, 10) || 1);
-    const width = Math.round(parseInt(this.widthInput.value, 10) || MIN_BOARD);
-    const height = Math.round(parseInt(this.heightInput.value, 10) || MIN_BOARD);
     const tanks = mode === 'pve' ? 1 + aiCount : aiCount;
 
-    if (width < MIN_BOARD || width > MAX_BOARD || height < MIN_BOARD || height > MAX_BOARD) {
-      this.errorEl.textContent = `Board size must be ${MIN_BOARD}–${MAX_BOARD} on each side.`;
-      return;
-    }
     if (mode === 'pve' && aiCount < 1) {
       this.errorEl.textContent = 'Pick at least 1 AI opponent.';
       return;
@@ -167,9 +190,24 @@ export class StartScreen {
       this.errorEl.textContent = 'Free-for-all needs at least 2 AutoPlayers.';
       return;
     }
-    if (width * height < tanks * 4) {
-      this.errorEl.textContent = `Board too small for ${tanks} tanks — needs ≥ ${tanks * 4} cells.`;
-      return;
+
+    let width: number;
+    let height: number;
+    if (this.randomCheck.checked) {
+      const size = this.randomBoardSize(tanks * 4);
+      width = size.w;
+      height = size.h;
+    } else {
+      width = Math.round(parseInt(this.widthInput.value, 10) || MIN_BOARD);
+      height = Math.round(parseInt(this.heightInput.value, 10) || MIN_BOARD);
+      if (width < MIN_BOARD || width > MAX_BOARD || height < MIN_BOARD || height > MAX_BOARD) {
+        this.errorEl.textContent = `Board size must be ${MIN_BOARD}–${MAX_BOARD} on each side.`;
+        return;
+      }
+      if (width * height < tanks * 4) {
+        this.errorEl.textContent = `Board too small for ${tanks} tanks — needs ≥ ${tanks * 4} cells.`;
+        return;
+      }
     }
 
     this.errorEl.textContent = '';

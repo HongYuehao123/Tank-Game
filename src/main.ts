@@ -31,7 +31,7 @@ function sizeCanvas(): void {
 
 function modeLabelFor(cfg: MatchConfig): string {
   const base = cfg.mode === 'pve' ? `Player vs ${cfg.aiCount} AI` : `${cfg.aiCount} AI Free-for-All`;
-  return `${base} · ${speedLabel(cfg.speedMultiplier)}`;
+  return `${base} · ${cfg.width}×${cfg.height} · ${speedLabel(cfg.speedMultiplier)}`;
 }
 
 function speedLabel(m: number): string {

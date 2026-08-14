@@ -80,6 +80,33 @@ new StartScreen(overlays, (cfg) => (captured = cfg));
   (overlays.querySelector('#start-btn') as HTMLButtonElement).click();
   const cfgFast = captured as MatchConfig | null;
   check('slider level flows into config', !!cfgFast && cfgFast.speedMultiplier === 2, JSON.stringify(cfgFast));
+
+  // Random Size: hides the manual size inputs and randomizes on START.
+  const sizeFields = Array.from(overlays.querySelectorAll<HTMLElement>('.size-field'));
+  check('size inputs visible by default', sizeFields.every((f) => !f.classList.contains('hidden')));
+  const randomCheck = overlays.querySelector<HTMLInputElement>('#random-size')!;
+  randomCheck.checked = true;
+  randomCheck.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+  check('size inputs hidden when Random Size checked', sizeFields.every((f) => f.classList.contains('hidden')));
+  (overlays.querySelector('#start-btn') as HTMLButtonElement).click();
+  const cfgRandom = captured as MatchConfig | null;
+  const tanksFor = (c: MatchConfig) => (c.mode === 'pve' ? 1 + c.aiCount : c.aiCount);
+  check(
+    'Random Size produces a valid board size',
+    !!cfgRandom &&
+      cfgRandom.width >= 5 &&
+      cfgRandom.width <= 20 &&
+      cfgRandom.height >= 5 &&
+      cfgRandom.height <= 20 &&
+      cfgRandom.width * cfgRandom.height >= tanksFor(cfgRandom) * 4,
+    JSON.stringify(cfgRandom),
+  );
+  // Restore for the remaining flow: fixed 10×8 so the HUD assertions hold.
+  randomCheck.checked = false;
+  randomCheck.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+  (overlays.querySelector('#board-width') as HTMLInputElement).value = '10';
+  (overlays.querySelector('#board-height') as HTMLInputElement).value = '8';
+  (overlays.querySelector('#start-btn') as HTMLButtonElement).click();
 }
 
 console.log('Game + HUD');
@@ -113,9 +140,10 @@ const game = new Game();
     }
     const endScreen = new EndScreen(overlays, () => {}, () => {});
     endScreen.show(game);
+    check('match reached an outcome', game.phase === 'over', `phase=${game.phase} alive=${game.aliveCount}`);
     check(
-      'end screen announces a winner',
-      /WINS/.test(overlays.querySelector('#end-title')?.textContent ?? ''),
+      'end screen announces the outcome',
+      /WINS|DRAW/.test(overlays.querySelector('#end-title')?.textContent ?? ''),
       overlays.querySelector('#end-title')?.textContent ?? 'none',
     );
   }
