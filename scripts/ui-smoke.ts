@@ -1,0 +1,131 @@
+/**
+ * DOM smoke test: exercise StartScreen → HUD → EndScreen wiring with jsdom.
+ * Run with: npx tsx scripts/ui-smoke.ts
+ */
+import { JSDOM } from 'jsdom';
+import type { MatchConfig } from '../src/types';
+
+const dom = new JSDOM('<!doctype html><html><body><div id="overlays"></div></body></html>', {
+  url: 'http://localhost/',
+});
+
+// Expose the minimal DOM globals the UI modules touch.
+(globalThis as Record<string, unknown>).document = dom.window.document;
+(globalThis as Record<string, unknown>).window = dom.window;
+(globalThis as Record<string, unknown>).HTMLElement = dom.window.HTMLElement;
+(globalThis as Record<string, unknown>).HTMLInputElement = dom.window.HTMLInputElement;
+
+// Import after globals are set.
+const { StartScreen } = await import('../src/ui/StartScreen');
+const { HUD } = await import('../src/ui/HUD');
+const { EndScreen } = await import('../src/ui/EndScreen');
+const { Game } = await import('../src/core/Game');
+
+let failures = 0;
+const check = (name: string, ok: boolean, detail = '') => {
+  if (!ok) {
+    failures++;
+    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`);
+  } else {
+    console.log(`  ✓ ${name}`);
+  }
+};
+
+const overlays = dom.window.document.getElementById('overlays')!;
+
+console.log('StartScreen');
+let captured: MatchConfig | null = null;
+new StartScreen(overlays, (cfg) => (captured = cfg));
+{
+  check('title renders', overlays.querySelector('h1')?.textContent === 'TANK BATTLE');
+  const badge = overlays.querySelector('.exp-badge');
+  check(
+    'Experimental badge present with white/gray style',
+    !!badge && badge.textContent === 'Experimental' && badge.classList.length > 0,
+  );
+  const controlSection = overlays.querySelector('#control-section')!;
+  check('control section visible in PvE mode', !controlSection.classList.contains('hidden'));
+
+  // Switch to FFA → control section hides.
+  const ffaRadio = overlays.querySelector<HTMLInputElement>('input[name="mode"][value="ffa"]')!;
+  ffaRadio.checked = true;
+  ffaRadio.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+  check('control section hidden in FFA mode', controlSection.classList.contains('hidden'));
+
+  // Fill the form and press START.
+  (overlays.querySelector('#ai-count') as HTMLInputElement).value = '4';
+  (overlays.querySelector('#board-width') as HTMLInputElement).value = '10';
+  (overlays.querySelector('#board-height') as HTMLInputElement).value = '8';
+  (overlays.querySelector('#fair') as HTMLInputElement).checked = true;
+  (overlays.querySelector('#start-btn') as HTMLButtonElement).click();
+
+  const cfg = captured as MatchConfig | null;
+  check(
+    'START emits the right config',
+    !!cfg &&
+      cfg.mode === 'ffa' &&
+      cfg.aiCount === 4 &&
+      cfg.width === 10 &&
+      cfg.height === 8 &&
+      cfg.fair === true &&
+      cfg.speedMultiplier === 1,
+    JSON.stringify(cfg),
+  );
+
+  // The Faster Movement slider: move it to max (2×) and restart.
+  const slider = overlays.querySelector<HTMLInputElement>('#speed-slider')!;
+  slider.value = '3';
+  slider.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  check('slider readout updates', overlays.querySelector('#speed-readout')?.textContent === '2×');
+  (overlays.querySelector('#start-btn') as HTMLButtonElement).click();
+  const cfgFast = captured as MatchConfig | null;
+  check('slider level flows into config', !!cfgFast && cfgFast.speedMultiplier === 2, JSON.stringify(cfgFast));
+}
+
+console.log('Game + HUD');
+const game = new Game();
+{
+  const cfg = captured as MatchConfig | null;
+  if (cfg) {
+    game.start(cfg);
+  } else {
+    check('config captured before starting game', false);
+  }
+  if (cfg) {
+    check('game starts playing', game.phase === 'playing' && game.totalCount === 4);
+
+    const hud = new HUD(overlays, () => game.pause(), () => {});
+    hud.show('FFA', 'WASD move');
+    hud.update(game.aliveCount, game.totalCount, '4 AI Free-for-All', 'WASD move');
+    check(
+      'HUD shows alive counts',
+      overlays.querySelector('#hud-alive')?.textContent === 'Alive: 4 / 4',
+      overlays.querySelector('#hud-alive')?.textContent ?? 'missing',
+    );
+    hud.setPaused(true);
+    check('pause button toggles text', overlays.querySelector('#hud-pause')?.textContent === 'Resume');
+
+    // Run the match to completion, then show the end screen.
+    let t = 0;
+    while (game.phase === 'playing' && t < 60) {
+      game.update(1 / 120);
+      t += 1 / 120;
+    }
+    const endScreen = new EndScreen(overlays, () => {}, () => {});
+    endScreen.show(game);
+    check(
+      'end screen announces a winner',
+      /WINS/.test(overlays.querySelector('#end-title')?.textContent ?? ''),
+      overlays.querySelector('#end-title')?.textContent ?? 'none',
+    );
+  }
+}
+
+console.log('');
+if (failures === 0) {
+  console.log('ALL UI SMOKE CHECKS PASSED ✅');
+  process.exit(0);
+} else {
+  console.error(`${failures} UI SMOKE CHECKS FAILED ❌`);
+  process.exit(1);
+}
