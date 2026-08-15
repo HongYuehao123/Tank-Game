@@ -162,12 +162,45 @@ input[type='number']:focus {
   color: #0e7490;
 }
 
+/* The scale labels sit only under the slider (not under the readout), and each
+   label is centered on its thumb stop. The readout is 48px + 10px gap, so the
+   labels row is pulled 58px short on the right; the slider thumb also travels
+   inset by ~8px (half of the 16px thumb) from each end of the track, which the
+   label offsets below mirror. */
 .speed-labels {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
+  height: 14px;
+  margin-top: 2px;
+  margin-right: 58px;
   font-size: 10.5px;
   color: #9aa0aa;
-  margin-top: 2px;
+}
+
+.speed-labels span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.speed-labels span:nth-child(1) {
+  left: 8px;
+}
+
+.speed-labels span:nth-child(2) {
+  left: calc(25% + 4px);
+}
+
+.speed-labels span:nth-child(3) {
+  left: 50%;
+}
+
+.speed-labels span:nth-child(4) {
+  left: calc(75% - 4px);
+}
+
+.speed-labels span:nth-child(5) {
+  left: calc(100% - 8px);
 }
 
 /* ---------- mode cards ---------- */
