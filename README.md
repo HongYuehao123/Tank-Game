@@ -55,10 +55,11 @@ whole game is a static site that runs anywhere.
 
 ## 🕹️ How to play
 
-1. Pick a **Game Mode** (Player vs AutoPlayers, or AI-only free-for-all).
+1. Pick a **Game Mode** (Player vs AutoPlayers, AI-only free-for-all, or a First-to-x run).
 2. Set the **AI count**, then either set **board width/height** (5–20 each) or
    tick **Random Size** to let the game pick a fitting size; choose the
-   **Faster Movement** multiplier (1× / 1.33× / 1.67× / 2×).
+   **Faster Movement** multiplier (1× / 1.25× / 1.5× / 1.75× / 2× — speeds up
+   tanks and bullets).
 3. Choose a **Control Mode** (PvE only) and optionally enable
    **Fair Generation**.
 4. Hit **START** and be the **last tank standing**.
@@ -73,8 +74,8 @@ whole game is a static site that runs anywhere.
   board won't fit the screen, the map and tanks shrink together to fit (and
   refit on resize).
 - Tank movement starts at 1.25× base speed; the **Faster Movement** slider adds
-  another ×1 … ×2 in four levels (applies to all tanks). AutoPlayers dodge with
-  extra-aggressive turning.
+  another ×1 … ×2 in five levels (1, 1.25, 1.5, 1.75, 2), applied to tanks
+  *and* bullets. AutoPlayers dodge with extra-aggressive turning.
 - **One hit destroys a tank.** Bullets are identical for everyone and can kill
   any tank — including the one that fired them (a brief muzzle grace prevents
   unavoidable point-blank suicides, but ricochet self-kills still count).

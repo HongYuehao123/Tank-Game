@@ -46,6 +46,6 @@ export function computeWorldMetrics(
     wallThickness: Math.max(2, WALL_THICKNESS * scale),
     tankSpeed: TANK_SPEED * scale * speedMultiplier,
     aiSpeed: AI_SPEED * scale * speedMultiplier,
-    bulletSpeed: BULLET_SPEED * scale,
+    bulletSpeed: BULLET_SPEED * scale * speedMultiplier,
   };
 }

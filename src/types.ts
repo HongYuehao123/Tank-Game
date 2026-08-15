@@ -1,4 +1,4 @@
-export type GameMode = 'pve' | 'ffa';
+export type GameMode = 'pve' | 'ffa' | 'first-to-x';
 export type ControlMode = 'classic' | 'modern';
 export type Phase = 'idle' | 'playing' | 'paused' | 'over';
 
@@ -19,4 +19,6 @@ export interface MatchConfig {
   fair: boolean;
   /** Movement speed multiplier for all tanks: 1 | 4/3 | 5/3 | 2. */
   speedMultiplier: number;
+  /** First-to-x only: first-to-N wins the series (ignored in other modes). */
+  targetScore?: number;
 }

@@ -1,25 +1,43 @@
 import './style.css';
 import { Game } from './core/Game';
 import { computeWorldMetrics, type WorldMetrics } from './core/metrics';
+import { randomBoardSize } from './core/Board';
+import { TournamentSession } from './core/Tournament';
 import { Renderer } from './render/Renderer';
 import { StartScreen } from './ui/StartScreen';
 import { HUD } from './ui/HUD';
 import { EndScreen } from './ui/EndScreen';
+import { DEFAULT_FIRST_TO } from './config';
 import type { MatchConfig } from './types';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
 const overlays = document.getElementById('overlays')!;
+const hudBar = document.getElementById('hud-bar')!;
+const hintBar = document.getElementById('hint-bar')!;
+
+/** Default canvas size, matching the initial HTML attributes. Used whenever a
+ *  full-screen overlay (menu / end screen) is shown, so a small board can't
+ *  shrink the container and squeeze the menu. */
+const DEFAULT_CANVAS = 720;
 
 const game = new Game();
 const renderer = new Renderer(ctx);
 
 let lastConfig: MatchConfig | null = null;
 
-/** Blocks are big by default; shrink the whole world (map + tanks) to fit. */
+/* First-to-x series state — lives here (not in Game) so it survives the
+ * per-round Game restarts. */
+let tournamentBase: MatchConfig | null = null;
+let tournamentSession: TournamentSession | null = null;
+let nextRoundTimer: number | undefined;
+
+/** Blocks are big by default; shrink the whole world (map + tanks) to fit.
+ *  The HUD bar above and hint bar below the board are not overlays anymore,
+ *  so their height is reserved and the board must fit in what's left. */
 function metricsFor(cfg: MatchConfig): WorldMetrics {
   const availW = window.innerWidth - 32;
-  const availH = window.innerHeight - 32;
+  const availH = window.innerHeight - 128;
   return computeWorldMetrics(cfg.width, cfg.height, availW, availH, cfg.speedMultiplier);
 }
 
@@ -29,15 +47,22 @@ function sizeCanvas(): void {
   canvas.height = game.board.canvasH;
 }
 
+/** Reset the canvas to the default size when returning to the main menu. */
+function defaultCanvas(): void {
+  canvas.width = DEFAULT_CANVAS;
+  canvas.height = DEFAULT_CANVAS;
+}
+
 function modeLabelFor(cfg: MatchConfig): string {
+  if (cfg.mode === 'first-to-x') {
+    return `First-to-x · ${cfg.width}×${cfg.height} · ${speedLabel(cfg.speedMultiplier)}`;
+  }
   const base = cfg.mode === 'pve' ? `Player vs ${cfg.aiCount} AI` : `${cfg.aiCount} AI Free-for-All`;
   return `${base} · ${cfg.width}×${cfg.height} · ${speedLabel(cfg.speedMultiplier)}`;
 }
 
 function speedLabel(m: number): string {
-  if (m === 1) return '1×';
-  if (m === 2) return '2×';
-  return `×${(Math.round(m * 100) / 100).toFixed(2)}`;
+  return `${m}×`;
 }
 
 function hintFor(cfg: MatchConfig): string {
@@ -101,10 +126,86 @@ function startMatch(cfg: MatchConfig): void {
   hud.show(modeLabelFor(cfg), hintFor(cfg));
 }
 
-const startScreen = new StartScreen(overlays, startMatch);
+function clearNextRoundTimer(): void {
+  if (nextRoundTimer !== undefined) {
+    window.clearTimeout(nextRoundTimer);
+    nextRoundTimer = undefined;
+  }
+}
+
+function startTournament(cfg: MatchConfig): void {
+  tournamentBase = cfg;
+  tournamentSession = new TournamentSession(cfg.targetScore ?? DEFAULT_FIRST_TO);
+  clearNextRoundTimer();
+  playNextRound();
+}
+
+/** Start the next round on a freshly randomized board + size. */
+function playNextRound(): void {
+  if (!tournamentBase || !tournamentSession) return;
+  const size = randomBoardSize(2 * 4); // player + one AI need ≥ 8 cells
+  const roundCfg: MatchConfig = {
+    ...tournamentBase,
+    width: size.w,
+    height: size.h,
+    aiCount: 1,
+    targetScore: tournamentSession.target,
+  };
+  lastConfig = roundCfg;
+  endScreen.hide();
+  startMatch(roundCfg);
+  hud.setScore(tournamentSession.player, tournamentSession.ai, tournamentSession.target);
+}
+
+/** Called when a first-to-x round ends: update the score, then either end the
+ *  series or auto-start the next round after a short pause. */
+function onTournamentRoundEnd(): void {
+  if (!tournamentSession) return;
+  const winner = game.winner;
+  const result: 'player' | 'ai' | 'draw' = !winner ? 'draw' : winner.isPlayer ? 'player' : 'ai';
+  if (result !== 'draw') tournamentSession.record(result);
+  hud.setScore(tournamentSession.player, tournamentSession.ai, tournamentSession.target);
+
+  if (tournamentSession.isOver) {
+    clearNextRoundTimer();
+    hud.hide();
+    hud.hideScore();
+    endScreen.showFinal(
+      tournamentSession.champion!,
+      tournamentSession.player,
+      tournamentSession.ai,
+      tournamentSession.target,
+    );
+  } else {
+    endScreen.showRoundResult(result, tournamentSession.player, tournamentSession.ai, tournamentSession.target);
+    clearNextRoundTimer();
+    nextRoundTimer = window.setTimeout(() => {
+      nextRoundTimer = undefined;
+      playNextRound();
+    }, 1800);
+  }
+}
+
+function goToMenu(): void {
+  clearNextRoundTimer();
+  tournamentBase = null;
+  tournamentSession = null;
+  endScreen.hide();
+  hud.hide();
+  hud.hideScore();
+  game.resetToIdle();
+  defaultCanvas();
+  startScreen.show();
+}
+
+const startScreen = new StartScreen(overlays, (cfg) => {
+  if (cfg.mode === 'first-to-x') startTournament(cfg);
+  else startMatch(cfg);
+});
 
 const hud = new HUD(
-  overlays,
+  hudBar,
+  hintBar,
   togglePause,
   () => {
     if (lastConfig) startMatch(lastConfig);
@@ -114,24 +215,25 @@ const hud = new HUD(
 const endScreen = new EndScreen(
   overlays,
   () => {
-    if (lastConfig) startMatch(lastConfig);
+    if (lastConfig?.mode === 'first-to-x') {
+      if (tournamentBase) startTournament(tournamentBase);
+    } else if (lastConfig) {
+      startMatch(lastConfig);
+    }
   },
-  () => {
-    endScreen.hide();
-    hud.hide();
-    startScreen.show();
-  },
+  goToMenu,
 );
 
 /* ---------- main loop ---------- */
 
 // Refit the board when the window resizes: restart the current match at the
-// freshly computed scale (only when the fit actually changed).
+// freshly computed scale (only when the fit actually changed). Skip while idle
+// or once a match is over (including the between-round first-to-x pause).
 let resizeTimer: number | undefined;
 window.addEventListener('resize', () => {
   window.clearTimeout(resizeTimer);
   resizeTimer = window.setTimeout(() => {
-    if (!lastConfig || game.phase === 'idle') return;
+    if (!lastConfig || game.phase === 'idle' || game.phase === 'over') return;
     const next = metricsFor(lastConfig);
     if (Math.abs(next.scale - game.metrics.scale) > 0.02) {
       startMatch(lastConfig);
@@ -148,8 +250,12 @@ function frame(now: number): void {
   if (game.phase === 'playing') {
     const ended = game.update(dt);
     if (ended) {
-      hud.hide();
-      endScreen.show(game);
+      if (game.config.mode === 'first-to-x') {
+        onTournamentRoundEnd();
+      } else {
+        hud.hide();
+        endScreen.show(game);
+      }
     } else {
       hud.update(game.aliveCount, game.totalCount, modeLabelFor(game.config), hintFor(game.config));
     }

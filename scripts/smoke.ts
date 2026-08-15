@@ -5,13 +5,14 @@
 import { Board } from '../src/core/Board';
 import { computeWorldMetrics } from '../src/core/metrics';
 import { Game } from '../src/core/Game';
+import { TournamentSession } from '../src/core/Tournament';
 import { Tank } from '../src/entities/Tank';
 import { Bullet } from '../src/entities/Bullet';
 import { Player } from '../src/entities/Player';
 import { AutoPlayer } from '../src/entities/AutoPlayer';
 import { movePointWithBounces, bulletHitsTank } from '../src/core/Collision';
 import { vec2 } from '../src/math/Vec2';
-import { FIXED_DT, BASE_CELL, TANK_WID, TANK_LEN } from '../src/config';
+import { FIXED_DT, BASE_CELL, TANK_WID, TANK_LEN, BULLET_SPEED, TOURNAMENT_AI_COLOR } from '../src/config';
 
 // Base-size world (huge viewport → scale 1) for deterministic geometry tests.
 const METRICS = computeWorldMetrics(20, 20, 100000, 100000);
@@ -195,7 +196,7 @@ console.log('Full matches');
     g.update(FIXED_DT);
   }
   const inBounds =
-    player.pos.x > 0 && player.pos.x < g.board.canvasW && player.pos.y > 0 && player.pos.y < g.board.canvasH;
+    player.pos.x > 0 && player.pos.x < g.board!.canvasW && player.pos.y > 0 && player.pos.y < g.board!.canvasH;
   check('modern mode player stays in bounds', inBounds, `pos=(${player.pos.x.toFixed(0)},${player.pos.y.toFixed(0)})`);
 }
 
@@ -204,8 +205,31 @@ console.log('Full matches');
   const g = new Game();
   g.start(cfg({ aiCount: 3, width: 7, height: 7 }));
   const ai = g.tanks.find((t) => t instanceof AutoPlayer) as AutoPlayer;
-  ai.update(FIXED_DT, { tanks: g.tanks, bullets: g.bullets, board: g.board });
+  ai.update(FIXED_DT, { tanks: g.tanks, bullets: g.bullets, board: g.board! });
   check('AutoPlayer update with context runs', ai.alive);
+}
+
+console.log('First-to-x mode');
+{
+  const g = new Game();
+  g.start(cfg({ mode: 'first-to-x', aiCount: 1, targetScore: 5, width: 8, height: 8 }));
+  const ai = g.tanks.find((t) => t instanceof AutoPlayer) as AutoPlayer;
+  check('first-to-x spawns player + exactly 1 AI', g.totalCount === 2 && g.player !== null && !!ai);
+  check('first-to-x AI uses the fixed color', ai.color === TOURNAMENT_AI_COLOR, ai.color);
+  runVirtualMatch(g, 90);
+  check('first-to-x round reaches a winner', g.phase === 'over' && g.winner !== null, `phase=${g.phase} alive=${g.aliveCount}`);
+}
+
+{
+  const s = new TournamentSession(3);
+  s.record('player');
+  s.record('ai');
+  s.record('player');
+  s.record(null); // draw — ignored
+  check('first-to-x score tallies and ignores draws', s.player === 2 && s.ai === 1, `You ${s.player} – AI ${s.ai}`);
+  check('series not over before target', !s.isOver && s.champion === null);
+  s.record('player');
+  check('series ends at first-to and names champion', s.isOver && s.champion === 'player', `You ${s.player} – AI ${s.ai}`);
 }
 
 console.log('Fit-to-screen scaling');
@@ -215,8 +239,8 @@ console.log('Fit-to-screen scaling');
   check('cell/tank ratio preserved when scaled', small.cell >= 4 * small.tankWid && small.cell >= 2 * small.tankLen);
   const g = new Game();
   g.start(cfg({ aiCount: 3, width: 12, height: 12 }), small);
-  check('scaled board fits the viewport', g.board.canvasW <= 500 + 0.01 && g.board.canvasH <= 400 + 0.01,
-    `${g.board.canvasW.toFixed(0)}x${g.board.canvasH.toFixed(0)}`);
+  check('scaled board fits the viewport', g.board!.canvasW <= 500 + 0.01 && g.board!.canvasH <= 400 + 0.01,
+    `${g.board!.canvasW.toFixed(0)}x${g.board!.canvasH.toFixed(0)}`);
   runVirtualMatch(g, 60);
   check('scaled 12x12 FFA completes', g.phase === 'over', `phase=${g.phase} alive=${g.aliveCount}`);
 }
@@ -225,15 +249,21 @@ console.log('Speed multiplier');
 {
   const m1 = computeWorldMetrics(10, 10, 100000, 100000, 1);
   const m2 = computeWorldMetrics(10, 10, 100000, 100000, 2);
-  const m133 = computeWorldMetrics(10, 10, 100000, 100000, 4 / 3);
+  const m125 = computeWorldMetrics(10, 10, 100000, 100000, 1.25);
   check(
     '2× multiplier doubles tank speed',
     Math.abs(m2.tankSpeed - 2 * m1.tankSpeed) < 1e-6 && Math.abs(m2.aiSpeed - 2 * m1.aiSpeed) < 1e-6,
     `tank ${m1.tankSpeed.toFixed(1)} → ${m2.tankSpeed.toFixed(1)}`,
   );
   check(
-    '1.33× multiplier scales proportionally',
-    Math.abs(m133.tankSpeed - (4 / 3) * m1.tankSpeed) < 1e-6,
+    '1.25× multiplier scales proportionally',
+    Math.abs(m125.tankSpeed - 1.25 * m1.tankSpeed) < 1e-6,
+  );
+  check(
+    'bullet speed scales with the multiplier too',
+    Math.abs(m2.bulletSpeed - 2 * m1.bulletSpeed) < 1e-6 &&
+      Math.abs(m1.bulletSpeed - BULLET_SPEED) < 1e-6,
+    `${m1.bulletSpeed.toFixed(1)} → ${m2.bulletSpeed.toFixed(1)}`,
   );
   const gSlow = new Game();
   gSlow.start(cfg({ mode: 'pve', aiCount: 3 }), computeWorldMetrics(8, 8, 100000, 100000, 1));

@@ -19,6 +19,17 @@ export function mulberry32(seed: number): () => number {
 const clampInt = (v: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, Math.round(v)));
 
+/** Random width/height in [MIN_BOARD, MAX_BOARD], retried until it fits the
+ *  given minimum cell area (always terminates: 20×20 fits everything). */
+export function randomBoardSize(minArea: number): { w: number; h: number } {
+  for (let i = 0; i < 60; i++) {
+    const w = MIN_BOARD + Math.floor(Math.random() * (MAX_BOARD - MIN_BOARD + 1));
+    const h = MIN_BOARD + Math.floor(Math.random() * (MAX_BOARD - MIN_BOARD + 1));
+    if (w * h >= minArea) return { w, h };
+  }
+  return { w: MAX_BOARD, h: MAX_BOARD };
+}
+
 /**
  * Walls are thin segments along the grid lines (not filled blocks): the arena
  * is a maze of wall lines, and every cell interior is walkable. A horizontal

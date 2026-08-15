@@ -4,12 +4,12 @@ import { Tank } from '../entities/Tank';
 import { Player } from '../entities/Player';
 import { AutoPlayer } from '../entities/AutoPlayer';
 import { Bullet } from '../entities/Bullet';
-import { FIXED_DT, AI_COLORS, PALETTE } from '../config';
+import { FIXED_DT, AI_COLORS, PALETTE, TOURNAMENT_AI_COLOR } from '../config';
 import type { InputState, MatchConfig, Phase } from '../types';
 import type { AIContext } from '../ai/Controller';
 
 export class Game {
-  board!: Board;
+  board: Board | null = null;
   config!: MatchConfig;
   metrics!: WorldMetrics;
   tanks: Tank[] = [];
@@ -47,11 +47,14 @@ export class Game {
     this.justEnded = false;
     this.input = { keys: {}, mouse: { x: 0, y: 0 }, shoot: false };
 
-    const tankCount = config.mode === 'pve' ? 1 + config.aiCount : config.aiCount;
-    const spawns = this.board.pickSpawns(tankCount, config.mode === 'pve');
+    // First-to-x is a fixed 1v1: the human player plus exactly one AutoPlayer.
+    const isPlayerMode = config.mode === 'pve' || config.mode === 'first-to-x';
+    const aiCount = config.mode === 'first-to-x' ? 1 : config.aiCount;
+    const tankCount = isPlayerMode ? 1 + aiCount : config.aiCount;
+    const spawns = this.board.pickSpawns(tankCount, isPlayerMode);
 
     let idx = 0;
-    if (config.mode === 'pve') {
+    if (isPlayerMode) {
       this.player = new Player(this.board, spawns[0], 'You', PALETTE.player, metrics);
       this.player.controlMode = config.controlMode;
       this.player.input = this.input;
@@ -62,8 +65,9 @@ export class Game {
     }
 
     for (let i = idx; i < spawns.length; i++) {
-      const name = config.mode === 'pve' ? `AI ${i}` : `AI ${i + 1}`;
-      const color = AI_COLORS[(i - idx) % AI_COLORS.length];
+      const name = config.mode === 'first-to-x' ? 'AI' : isPlayerMode ? `AI ${i}` : `AI ${i + 1}`;
+      const color =
+        config.mode === 'first-to-x' ? TOURNAMENT_AI_COLOR : AI_COLORS[(i - idx) % AI_COLORS.length];
       this.tanks.push(new AutoPlayer(this.board, spawns[i], name, color, metrics));
     }
 
@@ -95,7 +99,7 @@ export class Game {
   }
 
   private step(dt: number): void {
-    const ctx: AIContext = { tanks: this.tanks, bullets: this.bullets, board: this.board };
+    const ctx: AIContext = { tanks: this.tanks, bullets: this.bullets, board: this.board! };
 
     for (const t of this.tanks) {
       if (!t.alive) continue;
@@ -112,7 +116,7 @@ export class Game {
 
     for (const b of [...this.bullets]) {
       if (b.dead) continue;
-      const hit = b.update(dt, this.board, this.tanks);
+      const hit = b.update(dt, this.board!, this.tanks);
       if (hit) {
         hit.alive = false;
         b.dead = true;
@@ -126,5 +130,18 @@ export class Game {
       this.winner = alive[0] ?? null;
       this.justEnded = true;
     }
+  }
+
+  /** Clear the match and return to the pre-game idle state (menu). */
+  resetToIdle(): void {
+    this.phase = 'idle';
+    this.tanks = [];
+    this.bullets = [];
+    this.winner = null;
+    this.player = null;
+    this.board = null;
+    this.time = 0;
+    this.accumulator = 0;
+    this.justEnded = false;
   }
 }

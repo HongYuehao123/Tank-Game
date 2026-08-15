@@ -24,8 +24,10 @@ body {
 
 #app {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   width: 100%;
   height: 100%;
 }
@@ -46,10 +48,10 @@ body {
   image-rendering: auto;
 }
 
-/* ---------- overlays ---------- */
+/* ---------- overlays (full-viewport modals, never clipped by the board) ---------- */
 
 .overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
@@ -172,7 +174,7 @@ input[type='number']:focus {
 
 .mode-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -180,7 +182,7 @@ input[type='number']:focus {
 .mode-card {
   position: relative;
   display: block;
-  padding: 12px 12px 10px;
+  padding: 10px 8px 9px;
   border: 1px solid #d7dde8;
   border-radius: 10px;
   background: #f8fafc;
@@ -208,15 +210,17 @@ input[type='number']:focus {
 .mode-title {
   display: block;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   color: #111827;
+  line-height: 1.25;
 }
 
 .mode-desc {
   display: block;
-  font-size: 11px;
+  font-size: 10.5px;
   color: #6b7280;
   margin-top: 3px;
+  line-height: 1.3;
 }
 
 /* ---------- segmented control (control mode) ---------- */
@@ -339,19 +343,18 @@ input[type='number']:focus {
   text-align: center;
 }
 
-/* ---------- HUD ---------- */
+/* ---------- HUD (bar above the board, never covering it) ---------- */
 
 .hud {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.78);
-  z-index: 5;
+  gap: 18px;
+  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #d7dde8;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(31, 41, 55, 0.12);
   pointer-events: none;
 }
 
@@ -381,19 +384,47 @@ input[type='number']:focus {
 }
 
 .hint-bar {
-  position: absolute;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid #d7dde8;
   color: #4b5563;
   font-size: 12.5px;
   padding: 5px 16px;
   border-radius: 999px;
-  z-index: 5;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* ---------- first-to-x scoreboard (center section of the HUD bar) ---------- */
+
+.tournament-score {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.ts-chip {
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.ts-num {
+  font-weight: 900;
+  font-size: 16px;
+  color: #1f2937;
+  min-width: 16px;
+  text-align: center;
+}
+
+.ts-sep {
+  color: #9aa0aa;
+  font-weight: 700;
+}
+
+.ts-target {
+  color: #6b7280;
+  font-size: 11.5px;
+  margin-left: 4px;
 }
 
 /* ---------- end screen ---------- */

@@ -5,9 +5,10 @@
 import { JSDOM } from 'jsdom';
 import type { MatchConfig } from '../src/types';
 
-const dom = new JSDOM('<!doctype html><html><body><div id="overlays"></div></body></html>', {
-  url: 'http://localhost/',
-});
+const dom = new JSDOM(
+  '<!doctype html><html><body><div id="overlays"></div><div id="hud-bar"></div><div id="hint-bar"></div></body></html>',
+  { url: 'http://localhost/' },
+);
 
 // Expose the minimal DOM globals the UI modules touch.
 (globalThis as Record<string, unknown>).document = dom.window.document;
@@ -74,7 +75,7 @@ new StartScreen(overlays, (cfg) => (captured = cfg));
 
   // The Faster Movement slider: move it to max (2×) and restart.
   const slider = overlays.querySelector<HTMLInputElement>('#speed-slider')!;
-  slider.value = '3';
+  slider.value = '4';
   slider.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   check('slider readout updates', overlays.querySelector('#speed-readout')?.textContent === '2×');
   (overlays.querySelector('#start-btn') as HTMLButtonElement).click();
@@ -121,16 +122,21 @@ const game = new Game();
   if (cfg) {
     check('game starts playing', game.phase === 'playing' && game.totalCount === 4);
 
-    const hud = new HUD(overlays, () => game.pause(), () => {});
+    const hud = new HUD(
+      dom.window.document.getElementById('hud-bar')!,
+      dom.window.document.getElementById('hint-bar')!,
+      () => game.pause(),
+      () => {},
+    );
     hud.show('FFA', 'WASD move');
     hud.update(game.aliveCount, game.totalCount, '4 AI Free-for-All', 'WASD move');
     check(
       'HUD shows alive counts',
-      overlays.querySelector('#hud-alive')?.textContent === 'Alive: 4 / 4',
-      overlays.querySelector('#hud-alive')?.textContent ?? 'missing',
+      dom.window.document.querySelector('#hud-alive')?.textContent === 'Alive: 4 / 4',
+      dom.window.document.querySelector('#hud-alive')?.textContent ?? 'missing',
     );
     hud.setPaused(true);
-    check('pause button toggles text', overlays.querySelector('#hud-pause')?.textContent === 'Resume');
+    check('pause button toggles text', dom.window.document.querySelector('#hud-pause')?.textContent === 'Resume');
 
     // Run the match to completion, then show the end screen.
     let t = 0;
@@ -147,6 +153,39 @@ const game = new Game();
       overlays.querySelector('#end-title')?.textContent ?? 'none',
     );
   }
+}
+
+console.log('StartScreen — First-to-x');
+{
+  const firstToXRadio = overlays.querySelector<HTMLInputElement>('input[name="mode"][value="first-to-x"]')!;
+  firstToXRadio.checked = true;
+  firstToXRadio.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+  const controlSection = overlays.querySelector('#control-section')!;
+  check('first-to-x keeps control mode visible', !controlSection.classList.contains('hidden'));
+  check('first-to-x hides AI count', overlays.querySelector('#ai-count-field')!.classList.contains('hidden'));
+  check('first-to-x shows First-to input', !overlays.querySelector('#first-to-field')!.classList.contains('hidden'));
+  const sizeFields = Array.from(overlays.querySelectorAll<HTMLElement>('.size-field'));
+  check('first-to-x hides size inputs', sizeFields.every((f) => f.classList.contains('hidden')));
+  check('first-to-x hides Random Size row', overlays.querySelector('#random-size-row')!.classList.contains('hidden'));
+
+  (overlays.querySelector('#first-to') as HTMLInputElement).value = '7';
+  (overlays.querySelector('#start-btn') as HTMLButtonElement).click();
+  const cfgTour = captured as MatchConfig | null;
+  check(
+    'START emits first-to-x config (aiCount 1, targetScore 7)',
+    !!cfgTour &&
+      cfgTour.mode === 'first-to-x' &&
+      cfgTour.aiCount === 1 &&
+      cfgTour.targetScore === 7 &&
+      cfgTour.width >= 5 &&
+      cfgTour.height >= 5,
+    JSON.stringify(cfgTour),
+  );
+
+  // HUD scoreboard reflects first-to-x colors and the target.
+  const score = dom.window.document.querySelector<HTMLElement>('#ts-player')!;
+  check('scoreboard uses player/AI colors', !!score && score.style.color !== '');
 }
 
 console.log('');

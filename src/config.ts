@@ -21,7 +21,7 @@ export const AI_ROT_SPEED = 3.0; // rad/s
 /** Extra turn rate the AI uses while dodging (aggressive evasive turns). */
 export const DODGE_TURN_MULT = 2.2;
 
-export const BULLET_SPEED = 230; // px/s
+export const BULLET_SPEED = 340; // px/s (base; scales with the speed multiplier)
 export const BULLET_RADIUS = 5;
 export const BULLET_LIFETIME = 5; // seconds
 export const BULLET_MAX_BOUNCES = 8;
@@ -60,3 +60,11 @@ export const AI_COLORS: string[] = [
   '#8b5cf6',
   '#4ade80',
 ];
+
+/** Fixed color for the single First-to-x-mode AutoPlayer — a strong red that
+ *  reads clearly against the player's deep cyan (#0e7490). */
+export const TOURNAMENT_AI_COLOR = '#dc2626';
+
+/** First-to-x "first to X" bounds: at least 1, no upper limit. */
+export const MIN_FIRST_TO = 1;
+export const DEFAULT_FIRST_TO = 5;
