@@ -4,6 +4,7 @@
  */
 import { JSDOM } from 'jsdom';
 import type { MatchConfig } from '../src/types';
+import { mulberry32 } from '../src/core/Board';
 
 const dom = new JSDOM(
   '<!doctype html><html><body><div id="overlays"></div><div id="hud-bar"></div><div id="hint-bar"></div></body></html>',
@@ -21,6 +22,9 @@ const { StartScreen } = await import('../src/ui/StartScreen');
 const { HUD } = await import('../src/ui/HUD');
 const { EndScreen } = await import('../src/ui/EndScreen');
 const { Game } = await import('../src/core/Game');
+
+// Keep the simulated match and its timeout reproducible across runs.
+Math.random = mulberry32(12345);
 
 let failures = 0;
 const check = (name: string, ok: boolean, detail = '') => {

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "smoke": "tsx scripts/smoke.ts",
-    "ui-smoke": "tsx scripts/ui-smoke.ts"
+    "ui-smoke": "tsx scripts/ui-smoke.ts",
+    "test:ai": "node --import tsx scripts/ai-regression.ts"
   },
   "devDependencies": {
     "@types/jsdom": "^30.0.0",

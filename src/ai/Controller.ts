@@ -2,10 +2,13 @@ import type { Tank } from '../entities/Tank';
 import type { AutoPlayer } from '../entities/AutoPlayer';
 import type { Bullet } from '../entities/Bullet';
 import type { Board } from '../core/Board';
-import { movePointWithBounces } from '../core/Collision';
+import { moveCircleWithSlide, movePointWithBounces } from '../core/Collision';
 import type { Vec2 } from '../math/Vec2';
 import { vec2, sub, norm, perp, dot, dist, angleOf, angleDiff } from '../math/Vec2';
-import { AI_THINK_DT, THREAT_HORIZON, AIM_TOLERANCE } from '../config';
+import {
+  AI_THINK_DT, THREAT_HORIZON, THREAT_MAX_TIME, AIM_TOLERANCE,
+  BULLET_LIFETIME, BULLET_MAX_BOUNCES, MUZZLE_GRACE, FIXED_DT, DODGE_TURN_MULT,
+} from '../config';
 
 export interface AIIntent {
   /** [-1, 1] forward drive. */
@@ -29,8 +32,9 @@ interface Threat {
   time: number;
 }
 
-const THREAT_MAX_TIME = 1.0; // horizon for a predicted hit
-const SIM_STEP = 1 / 30;
+// Match the bullet lifetime, grace and bounce checks at each physics step.
+const SIM_STEP = FIXED_DT;
+const DODGE_WALL_HORIZON = 0.3;
 
 /**
  * AutoPlayer brain — priorities:
@@ -44,35 +48,42 @@ export class Controller {
   private wanderTarget: Vec2 | null = null;
   private wanderTimer = 0;
   private lastPos: Vec2 | null = null;
+  private lastMove = 0;
   private stuckTimer = 0;
   private backingOut = 0;
 
   think(ai: AutoPlayer, ctx: AIContext): AIIntent {
-    // Back out of a pocket if we've been making no progress (e.g. wedged into
-    // a corner by walls) — reversing along our facing escapes it.
-    // Pixel thresholds scale with the (possibly fit-scaled) world size.
-    const s = ai.metrics.scale;
+    // Only a failed movement request indicates a pocket. Holding aim is an
+    // intentional stop; compare progress with requested speed so slow backing
+    // and fit-to-screen scaling don't produce false recoveries.
     const moved = this.lastPos ? dist(ai.pos, this.lastPos) : Infinity;
     this.lastPos = { x: ai.pos.x, y: ai.pos.y };
-    if (this.backingOut > 0) {
+    const expected = Math.abs(this.lastMove) * ai.speed * AI_THINK_DT;
+    if (expected > 0 && moved < expected * 0.2) this.stuckTimer += AI_THINK_DT;
+    else this.stuckTimer = 0;
+
+    let intent: AIIntent;
+    const threat = this.findThreat(ai, ctx);
+    if (threat) {
+      // A live threat must interrupt recovery rather than being ignored until
+      // the half-second reversing timer expires.
+      this.backingOut = 0;
+      this.stuckTimer = 0;
+      intent = this.dodge(ai, threat);
+    } else if (this.backingOut > 0) {
       this.backingOut -= AI_THINK_DT;
-      return { move: -0.6, targetAngle: ai.angle, wantShoot: false, fastTurn: false };
-    }
-    if (moved < 1.5 * s) this.stuckTimer += AI_THINK_DT;
-    else this.stuckTimer = Math.max(0, this.stuckTimer - AI_THINK_DT * 2);
-    if (this.stuckTimer > 0.4) {
+      this.stuckTimer = 0;
+      intent = { move: -0.6, targetAngle: ai.angle, wantShoot: false, fastTurn: false };
+    } else if (this.stuckTimer > 0.4) {
       this.stuckTimer = 0;
       this.backingOut = 0.5;
-      return { move: -0.6, targetAngle: ai.angle, wantShoot: false, fastTurn: false };
+      intent = { move: -0.6, targetAngle: ai.angle, wantShoot: false, fastTurn: false };
+    } else {
+      const target = this.nearestEnemy(ai, ctx.tanks);
+      intent = target ? this.attack(ai, target, ctx) : this.wander(ai, ctx);
     }
-
-    const threat = this.findThreat(ai, ctx);
-    if (threat) return this.dodge(ai, threat);
-
-    const target = this.nearestEnemy(ai, ctx.tanks);
-    if (target) return this.attack(ai, target, ctx);
-
-    return this.wander(ai, ctx);
+    this.lastMove = intent.move;
+    return intent;
   }
 
   /** Simulate every bullet a short horizon ahead. A bullet is a threat only if
@@ -84,13 +95,13 @@ export class Controller {
     const steps = Math.ceil(THREAT_HORIZON / SIM_STEP);
     for (const b of ctx.bullets) {
       if (b.dead) continue;
-      if (b.owner === ai && b.age < 0.3) continue;
       const hitR = ai.len / 2 + b.radius + ai.len * 0.12;
       const dangerR = ai.len / 2 + b.radius + ai.len * 1.2;
       let p = { x: b.pos.x, y: b.pos.y };
       let v = { x: b.vel.x, y: b.vel.y };
       let time = 0;
-      let minD = Infinity;
+      let age = b.age;
+      let bounces = b.bounces;
       let dangerTime = -1;
       let dangerPos: Vec2 = { x: b.pos.x, y: b.pos.y };
       let dangerDir: Vec2 = { x: v.x, y: v.y };
@@ -99,27 +110,30 @@ export class Controller {
         p = res.pos;
         v = res.vel;
         time += SIM_STEP;
+        age += SIM_STEP;
+        bounces += res.bounces;
         if (time > THREAT_HORIZON) break;
+        if (age > BULLET_LIFETIME || bounces > BULLET_MAX_BOUNCES) break;
+        if (b.owner === ai && age < MUZZLE_GRACE) continue;
         const d = dist(p, ai.pos);
         if (d < dangerR && dangerTime < 0) {
           dangerTime = time;
           dangerPos = { x: p.x, y: p.y };
           dangerDir = norm(v);
         }
-        if (d < minD) minD = d;
-      }
-      if (minD < hitR && dangerTime >= 0 && dangerTime <= THREAT_MAX_TIME) {
-        if (!best || dangerTime < best.time) {
-          best = { pos: dangerPos, dir: dangerDir, time: dangerTime };
+        if (d < hitR) {
+          if (dangerTime >= 0 && dangerTime <= THREAT_MAX_TIME && (!best || dangerTime < best.time)) {
+            best = { pos: dangerPos, dir: dangerDir, time: dangerTime };
+          }
+          break;
         }
       }
     }
     return best;
   }
 
-  /** Snap across the bullet's path and drive — presenting the narrow profile
-   *  while sliding out of the way. Uses a boosted turn rate and commits hard to
-   *  the lateral when the hit is imminent. */
+  /** Prefer a lateral escape with wall clearance and a short turn. Reversing
+   *  can start that escape immediately rather than driving toward a wall. */
   private dodge(ai: AutoPlayer, threat: Threat): AIIntent {
     const away = norm(sub(ai.pos, threat.pos));
     const lateral = perp(threat.dir);
@@ -128,7 +142,48 @@ export class Controller {
     const face = norm(
       vec2(pick.x + away.x * (1 - urgency) * 0.35, pick.y + away.y * (1 - urgency) * 0.35),
     );
-    return { move: 1, targetAngle: angleOf(face), wantShoot: false, fastTurn: true };
+    const preferred: AIIntent = { move: 1, targetAngle: angleOf(face), wantShoot: false, fastTurn: true };
+    let best = preferred;
+    let bestBlocked = this.blockedDodgeTravel(ai, preferred);
+    for (const move of [1, -1]) {
+      for (const side of [0, Math.PI]) {
+        if (move === 1 && side === 0) continue; // already evaluated
+        const candidate: AIIntent = {
+          move,
+          targetAngle: preferred.targetAngle + side + (move < 0 ? Math.PI : 0),
+          wantShoot: false,
+          fastTurn: true,
+        };
+        const blocked = this.blockedDodgeTravel(ai, candidate);
+        const turn = Math.abs(angleDiff(ai.angle, candidate.targetAngle));
+        const bestTurn = Math.abs(angleDiff(ai.angle, best.targetAngle));
+        if (blocked < bestBlocked - 0.01 * ai.metrics.scale ||
+            (Math.abs(blocked - bestBlocked) <= 0.01 * ai.metrics.scale && turn < bestTurn - 1e-6)) {
+          best = candidate;
+          bestBlocked = blocked;
+        }
+      }
+    }
+    return best;
+  }
+
+  /** Account for actual turning and wall sliding, including the movement that
+   *  happens before turning in AutoPlayer.update. This only checks wall access;
+   *  simultaneous-bullet maneuver planning remains a separate improvement. */
+  private blockedDodgeTravel(ai: AutoPlayer, intent: AIIntent): number {
+    let pos = { ...ai.pos };
+    let angle = ai.angle;
+    let blocked = 0;
+    for (let i = 0; i < Math.ceil(DODGE_WALL_HORIZON / FIXED_DT); i++) {
+      const step = ai.speed * intent.move * FIXED_DT;
+      const delta = vec2(Math.cos(angle) * step, Math.sin(angle) * step);
+      const next = moveCircleWithSlide(pos, delta, ai.board, ai.radius);
+      blocked += Math.hypot(next.x - pos.x - delta.x, next.y - pos.y - delta.y);
+      pos = next;
+      const diff = angleDiff(angle, intent.targetAngle);
+      angle += Math.sign(diff) * Math.min(Math.abs(diff), ai.rotSpeed * DODGE_TURN_MULT * FIXED_DT);
+    }
+    return blocked;
   }
 
   private attack(ai: AutoPlayer, target: Tank, ctx: AIContext): AIIntent {

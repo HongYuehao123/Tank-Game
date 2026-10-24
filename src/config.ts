@@ -13,7 +13,7 @@ export const BASE_CELL = Math.max(4 * TANK_WID, 2 * TANK_LEN); // 88px
 export const WALL_THICKNESS = 6; // base thickness of wall lines
 
 export const TANK_SPEED = 150; // px/s (1.25× base)
-export const TANK_ROT_SPEED = 3.6; // rad/s (classic mode + AI base)
+export const TANK_ROT_SPEED = 3.6; // rad/s (classic player mode)
 export const MODERN_ROT_SPEED = 10; // rad/s (modern mouse-aim turn rate)
 
 export const AI_SPEED = 135; // px/s (1.25× base)

@@ -104,6 +104,7 @@ The `dist/` folder is a plain static site — serve it with any static host
 
 ```bash
 npm run typecheck  # tsc --noEmit
+npm run test:ai    # focused AI behavior regression tests
 npm run smoke      # headless logic tests (no browser needed)
 npm run ui-smoke   # DOM smoke test (jsdom)
 npm run build      # tsc + vite build

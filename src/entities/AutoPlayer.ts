@@ -1,11 +1,13 @@
 import { Tank } from './Tank';
 import { angleDiff } from '../math/Vec2';
-import { AI_THINK_DT, AI_SHOOT_COOLDOWN, DODGE_TURN_MULT } from '../config';
+import { AI_THINK_DT, AI_SHOOT_COOLDOWN, AI_ROT_SPEED, DODGE_TURN_MULT } from '../config';
 import type { AIContext, AIIntent } from '../ai/Controller';
 import { Controller } from '../ai/Controller';
 
 /** AI-driven tank; decisions come from its own Controller instance. */
 export class AutoPlayer extends Tank {
+  speed = this.metrics.aiSpeed;
+  rotSpeed = AI_ROT_SPEED;
   private controller = new Controller();
   private thinkTimer = Math.random() * AI_THINK_DT; // stagger AIs slightly
   private intent: AIIntent = { move: 0, targetAngle: this.angle, wantShoot: false, fastTurn: false };
