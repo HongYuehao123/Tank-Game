@@ -35,9 +35,11 @@ whole game is a static site that runs anywhere.
 - **Directional hitboxes** — each tank's body is an ellipse aligned to its
   facing, so turning presents a narrower profile: the core "turn to dodge"
   mechanic.
-- **Smart AI** — AutoPlayers predict incoming bullet paths to dodge, pathfind
-  through the maze with BFS, shoot the nearest enemy when they have line of
-  sight, and reverse out of corners when stuck. Each has its own aim "personality".
+- **Smart AI** — AutoPlayers simulate forward, reverse, braking, and turning
+  routes against multiple incoming bullets and ricochets. They account for
+  walls, turning time, and directional hitboxes, favor stable escapes, and can
+  return fire while evading. They also navigate with BFS and reverse out of
+  corners when stuck. Each has its own aim "personality".
 - **Fit-to-screen scaling** — the whole world (map + tanks) shrinks together to
   fit the viewport and refits automatically when you resize the window.
 - **Fixed-timestep simulation** — a 120 Hz physics step with a deterministic
@@ -132,7 +134,8 @@ src/
 │   ├── Player.ts      classic/modern human controls
 │   └── AutoPlayer.ts  AI tank wrapper
 ├── ai/
-│   └── Controller.ts  AutoPlayer brain (dodge → shoot → wander)
+│   ├── Controller.ts  AutoPlayer brain (dodge → shoot → wander)
+│   └── EvasionPlanner.ts  Future movement, crossfire avoidance, shared bullet prediction
 ├── render/
 │   └── Renderer.ts    Canvas 2D drawing (no assets)
 └── ui/
@@ -140,6 +143,7 @@ src/
     ├── HUD.ts         alive count, pause/restart
     └── EndScreen.ts   win/lose screen
 scripts/
+├── ai-regression.ts   deterministic AI behavior and avoidance scenarios
 ├── smoke.ts           headless logic tests
 └── ui-smoke.ts        DOM smoke test (jsdom)
 ```
