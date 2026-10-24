@@ -37,7 +37,9 @@ let nextRoundTimer: number | undefined;
  *  so their height is reserved and the board must fit in what's left. */
 function metricsFor(cfg: MatchConfig): WorldMetrics {
   const availW = window.innerWidth - 32;
-  const availH = window.innerHeight - 128;
+  // The responsive HUD wraps its controls and series score on small screens.
+  const chromeHeight = window.innerWidth <= 480 ? 196 : window.innerWidth <= 750 ? 160 : 128;
+  const availH = window.innerHeight - chromeHeight;
   return computeWorldMetrics(cfg.width, cfg.height, availW, availH, cfg.speedMultiplier);
 }
 

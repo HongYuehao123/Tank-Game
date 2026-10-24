@@ -42,10 +42,10 @@ console.log('StartScreen');
 let captured: MatchConfig | null = null;
 new StartScreen(overlays, (cfg) => (captured = cfg));
 {
-  check('title renders', overlays.querySelector('h1')?.textContent === 'TANK BATTLE');
+  check('title renders', overlays.querySelector('h1')?.textContent === 'Tank Battle.');
   const badge = overlays.querySelector('.exp-badge');
   check(
-    'Experimental badge present with white/gray style',
+    'Experimental badge renders',
     !!badge && badge.textContent === 'Experimental' && badge.classList.length > 0,
   );
   const controlSection = overlays.querySelector('#control-section')!;

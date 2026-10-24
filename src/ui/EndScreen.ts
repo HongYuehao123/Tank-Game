@@ -17,7 +17,8 @@ export class EndScreen {
     this.el = document.createElement('div');
     this.el.className = 'overlay hidden';
     this.el.innerHTML = `
-      <div class="card">
+      <div class="card result-card">
+        <p class="eyebrow">The arena has spoken</p>
         <h1 class="end-title" id="end-title">—</h1>
         <p class="end-desc" id="end-desc">—</p>
         <div class="end-buttons" id="end-buttons">
@@ -39,7 +40,7 @@ export class EndScreen {
   show(game: Game): void {
     const cfg = game.config;
     const winner = game.winner;
-    const color = winner ? winner.color : '#94a3b8';
+    const color = winner ? winner.color : PALETTE.muted;
 
     let title: string;
     let desc: string;
@@ -57,7 +58,7 @@ export class EndScreen {
     }
 
     this.titleEl.textContent = title;
-    this.titleEl.style.color = cfg.mode === 'pve' && game.player && game.player.alive ? '#16a34a' : color;
+    this.titleEl.style.color = cfg.mode === 'pve' && game.player && game.player.alive ? PALETTE.player : color;
     this.descEl.textContent = desc;
     this.setButtons(true, true);
     this.el.classList.remove('hidden');
@@ -84,7 +85,7 @@ export class EndScreen {
       lead = 'Round to the AutoPlayer.';
     } else {
       title = 'DRAW';
-      color = '#6b7280';
+      color = PALETTE.muted;
       lead = 'No score — replaying the round.';
     }
 

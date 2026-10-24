@@ -1,4 +1,4 @@
-/* Central tunables and the shared color palette (light theme). */
+/* Central tunables and the shared ResolvedHorse-inspired paper palette. */
 
 export const MIN_BOARD = 5;
 export const MAX_BOARD = 20;
@@ -42,28 +42,28 @@ export const THREAT_MAX_TIME = 1.0; // seconds — dodge only imminent hits
 export const AIM_TOLERANCE = 0.2; // radians
 
 export const PALETTE = {
-  bg: '#eef1f6', // off-white arena
-  wall: '#3f4a5f', // dark slate — wall lines
-  player: '#0e7490', // deep cyan (player tank)
-  playerDark: '#0b2a33',
-  bullet: '#d97706', // amber — readable on white
-  text: '#1f2937',
-  tread: 'rgba(0, 0, 0, 0.25)',
-  barrel: '#1f2937',
+  bg: '#F6F3EB', // continuous cream canvas
+  wall: '#727568', // muted olive wall lines
+  player: '#385B45', // forest green
+  playerDark: '#252820',
+  bullet: '#C84C27', // burnt orange, shared by every bullet
+  text: '#252820',
+  muted: '#727568',
+  tread: 'rgba(37, 40, 32, 0.3)',
+  barrel: '#252820',
 } as const;
 
 export const AI_COLORS: string[] = [
-  '#f97316',
-  '#ef4444',
-  '#e879f9',
-  '#facc15',
-  '#8b5cf6',
-  '#4ade80',
+  '#C84C27',
+  '#936B45',
+  '#657788',
+  '#8A7534',
+  '#896779',
+  '#4E7C75',
 ];
 
-/** Fixed color for the single First-to-x-mode AutoPlayer — a strong red that
- *  reads clearly against the player's deep cyan (#0e7490). */
-export const TOURNAMENT_AI_COLOR = '#dc2626';
+/** Burnt orange distinguishes the First-to-x opponent from the green player. */
+export const TOURNAMENT_AI_COLOR = '#C84C27';
 
 /** First-to-x "first to X" bounds: at least 1, no upper limit. */
 export const MIN_FIRST_TO = 1;

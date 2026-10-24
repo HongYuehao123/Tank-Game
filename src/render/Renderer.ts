@@ -23,7 +23,7 @@ export class Renderer {
 
     // Bullets — one shared look for everyone (player & AI alike).
     ctx.fillStyle = PALETTE.bullet;
-    ctx.strokeStyle = 'rgba(30, 41, 59, 0.5)';
+    ctx.strokeStyle = PALETTE.barrel;
     ctx.lineWidth = 1;
     for (const b of game.bullets) {
       ctx.beginPath();

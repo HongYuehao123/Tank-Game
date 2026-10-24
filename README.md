@@ -119,7 +119,7 @@ src/
 ├── main.ts            bootstrap + input + main loop
 ├── config.ts          tunables & color palette
 ├── types.ts           shared types
-├── style.css          light-theme UI
+├── style.css          cream, olive, sage, and burnt-orange UI
 ├── math/
 │   ├── Vec2.ts        vector math + angle helpers
 │   └── geometry.ts    segment/AABB + rotated-rectangle tests

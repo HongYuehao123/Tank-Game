@@ -34,88 +34,115 @@ export class StartScreen {
     this.el = document.createElement('div');
     this.el.className = 'overlay';
     this.el.innerHTML = `
-      <div class="card">
-        <h1>TANK BATTLE</h1>
-        <span class="accent"></span>
-        <p class="subtitle">A 坦克动荡2-style arena — last tank standing wins.</p>
-
-        <div class="field">
-          <span class="field-label">Game Mode</span>
-          <div class="mode-grid">
-            <label class="mode-card selected">
-              <input type="radio" name="mode" value="pve" checked />
-              <span class="mode-title">Player vs AutoPlayers</span>
-              <span class="mode-desc">You vs a chosen number of AI tanks</span>
-            </label>
-            <label class="mode-card">
-              <input type="radio" name="mode" value="ffa" />
-              <span class="mode-title">AutoPlayers vs AutoPlayers</span>
-              <span class="mode-desc">AI-only free-for-all, watch it play</span>
-            </label>
-            <label class="mode-card">
-              <input type="radio" name="mode" value="first-to-x" />
-              <span class="mode-title">First-to-x</span>
-              <span class="mode-desc">1v1 vs one AI, first to a score</span>
-            </label>
+      <div class="card start-card">
+        <div class="start-intro">
+          <p class="eyebrow">A little time for play</p>
+          <h1>Tank <span>Battle.</span></h1>
+          <p class="subtitle">A familiar arena. A smarter opponent.<br />Be the last tank standing.</p>
+          <div class="arena-art" aria-hidden="true">
+            <svg viewBox="0 0 320 300" focusable="false">
+              <g class="art-rings" fill="none" stroke-width="1">
+                <circle cx="160" cy="150" r="110" />
+                <circle cx="160" cy="150" r="78" />
+                <circle cx="160" cy="150" r="46" />
+              </g>
+              <path class="art-path" d="M44 236 L260 236 L260 62 L218 62" fill="none" stroke-width="2" stroke-dasharray="4 7" />
+              <g class="art-tank" transform="translate(151 153) rotate(-32)">
+                <rect x="-49" y="-40" width="98" height="18" rx="4" />
+                <rect x="-49" y="22" width="98" height="18" rx="4" />
+                <rect x="-42" y="-31" width="84" height="62" rx="6" />
+                <rect x="-2" y="-7" width="82" height="14" rx="2" />
+                <circle class="art-turret" r="20" />
+                <circle class="art-detail" r="6" />
+              </g>
+              <circle class="art-projectile" cx="221" cy="62" r="6" />
+              <path class="art-spark" d="M65 70 V86 M57 78 H73" fill="none" stroke-width="2" />
+            </svg>
+            <span class="art-caption">Move. Aim. Outlast.</span>
           </div>
+          <p class="start-note">One hit. One winner. Mind the ricochets.</p>
         </div>
+        <div class="start-settings">
+          <p class="eyebrow">Your next match</p>
+          <h2>Set the arena.</h2>
+          <div class="field">
+            <span class="field-label">Game Mode</span>
+            <div class="mode-grid" role="radiogroup" aria-label="Game Mode">
+              <label class="mode-card selected">
+                <input type="radio" name="mode" value="pve" checked />
+                <span class="mode-title">Player vs AutoPlayers</span>
+                <span class="mode-desc">You vs a chosen number of AI tanks</span>
+              </label>
+              <label class="mode-card">
+                <input type="radio" name="mode" value="ffa" />
+                <span class="mode-title">AutoPlayers vs AutoPlayers</span>
+                <span class="mode-desc">AI-only free-for-all, watch it play</span>
+              </label>
+              <label class="mode-card">
+                <input type="radio" name="mode" value="first-to-x" />
+                <span class="mode-title">First-to-x</span>
+                <span class="mode-desc">1v1 vs one AI, first to a score</span>
+              </label>
+            </div>
+          </div>
 
-        <div class="row">
-          <div class="field" id="ai-count-field">
-            <label for="ai-count">${'AI Count'}</label>
-            <input id="ai-count" type="number" min="1" max="19" value="3" />
+          <div class="row">
+            <div class="field" id="ai-count-field">
+              <label for="ai-count">${'AI Count'}</label>
+              <input id="ai-count" type="number" min="1" max="19" value="3" />
+            </div>
+            <div class="field" id="first-to-field">
+              <label for="first-to">First to</label>
+              <input id="first-to" type="number" min="${MIN_FIRST_TO}" value="${DEFAULT_FIRST_TO}" />
+            </div>
+            <div class="field size-field">
+              <label for="board-width">Board Width (5–${MAX_BOARD})</label>
+              <input id="board-width" type="number" min="${MIN_BOARD}" max="${MAX_BOARD}" value="12" />
+            </div>
+            <div class="field size-field">
+              <label for="board-height">Board Height (5–${MAX_BOARD})</label>
+              <input id="board-height" type="number" min="${MIN_BOARD}" max="${MAX_BOARD}" value="12" />
+            </div>
           </div>
-          <div class="field" id="first-to-field">
-            <label for="first-to">First to</label>
-            <input id="first-to" type="number" min="${MIN_FIRST_TO}" value="${DEFAULT_FIRST_TO}" />
+
+          <div class="fair-row" id="random-size-row">
+            <input id="random-size" type="checkbox" />
+            <label for="random-size">Random Size</label>
           </div>
-          <div class="field size-field">
-            <label for="board-width">Board Width (5–${MAX_BOARD})</label>
-            <input id="board-width" type="number" min="${MIN_BOARD}" max="${MAX_BOARD}" value="12" />
+
+          <div class="field">
+            <label class="field-label" for="speed-slider">Faster Movement</label>
+            <div class="speed-row">
+              <input id="speed-slider" type="range" min="0" max="4" step="1" value="0" />
+              <span class="speed-readout" id="speed-readout">1×</span>
+            </div>
+            <div class="speed-labels">
+              <span>1×</span><span>1.25×</span><span>1.5×</span><span>1.75×</span><span>2×</span>
+            </div>
           </div>
-          <div class="field size-field">
-            <label for="board-height">Board Height (5–${MAX_BOARD})</label>
-            <input id="board-height" type="number" min="${MIN_BOARD}" max="${MAX_BOARD}" value="12" />
+
+          <div class="field" id="control-section">
+            <span class="field-label">Control Mode</span>
+            <div class="segmented">
+              <label class="selected">
+                <input type="radio" name="control" value="classic" checked />
+                Classic (Robot Centered)
+              </label>
+              <label>
+                <input type="radio" name="control" value="modern" />
+                Modern (Field Centered)
+              </label>
+            </div>
           </div>
+
+          <div class="fair-row">
+            <input id="fair" type="checkbox" />
+            <label for="fair">Fair Generation<span class="exp-badge">Experimental</span></label>
+          </div>
+
+          <p class="error-msg" id="start-error" role="alert"></p>
+          <button class="btn-primary" id="start-btn">START</button>
         </div>
-
-        <div class="fair-row" id="random-size-row">
-          <input id="random-size" type="checkbox" />
-          <label for="random-size">Random Size</label>
-        </div>
-
-        <div class="field">
-          <span class="field-label">Faster Movement</span>
-          <div class="speed-row">
-            <input id="speed-slider" type="range" min="0" max="4" step="1" value="0" />
-            <span class="speed-readout" id="speed-readout">1×</span>
-          </div>
-          <div class="speed-labels">
-            <span>1×</span><span>1.25×</span><span>1.5×</span><span>1.75×</span><span>2×</span>
-          </div>
-        </div>
-
-        <div class="field" id="control-section">
-          <span class="field-label">Control Mode</span>
-          <div class="segmented">
-            <label class="selected">
-              <input type="radio" name="control" value="classic" checked />
-              Classic (Robot Centered)
-            </label>
-            <label>
-              <input type="radio" name="control" value="modern" />
-              Modern (Field Centered)
-            </label>
-          </div>
-        </div>
-
-        <div class="fair-row">
-          <input id="fair" type="checkbox" />
-          <label for="fair">Fair Generation<span class="exp-badge">Experimental</span></label>
-        </div>
-
-        <p class="error-msg" id="start-error"></p>
-        <button class="btn-primary" id="start-btn">START</button>
       </div>
     `;
     container.appendChild(this.el);
